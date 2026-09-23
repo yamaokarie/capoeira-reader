@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { DM_Sans, Inter, Playfair_Display, Source_Serif_4 } from "next/font/google";
+import { DM_Sans, Inter, Source_Serif_4 } from "next/font/google";
 import localFont from "next/font/local";
 import "./globals.css";
 
@@ -11,12 +11,6 @@ const inter = Inter({
 const dmSans = DM_Sans({
   variable: "--font-dm-sans",
   subsets: ["latin"],
-});
-
-const playfair = Playfair_Display({
-  variable: "--font-playfair",
-  subsets: ["latin"],
-  weight: ["700", "900"],
 });
 
 const sourceSerif = Source_Serif_4({
@@ -45,7 +39,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${inter.variable} ${dmSans.variable} ${playfair.variable} ${sourceSerif.variable} ${bogueBlack.variable}`}
+      className={`${inter.variable} ${dmSans.variable} ${sourceSerif.variable} ${bogueBlack.variable}`}
     >
       <body>{children}</body>
     </html>

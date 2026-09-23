@@ -30,7 +30,7 @@
   --height-circular: 72px;
   --height-button: 48px;
 
-  --font-display: var(--font-bogue), var(--font-playfair), "Playfair Display", serif;
+  --font-display: var(--font-bogue), "Bogue Black", serif;
   --font-serif-italic: var(--font-source-serif), "Source Serif 4", serif;
   --font-quote: var(--font-source-serif), "Source Serif 4", serif;
   --font-kicker: var(--font-dm-sans), "DM Sans", sans-serif;
