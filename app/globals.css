@@ -129,9 +129,9 @@ button:disabled {
   display: block;
   width: 100%;
   padding: 0;
-  border: none;
+  border: 1px solid rgba(255, 255, 255, 0.06);
   background: #141210;
-  border-radius: var(--radius-card);
+  border-radius: 24px;
   overflow: hidden;
   text-align: left;
   color: inherit;
@@ -144,8 +144,10 @@ button:disabled {
 }
 
 .home-thumb {
+  display: block;
   position: relative;
-  aspect-ratio: 16 / 9;
+  width: 100%;
+  height: 360px;
   background:
     repeating-linear-gradient(
       -32deg,
@@ -176,50 +178,77 @@ button:disabled {
   text-transform: uppercase;
 }
 
-.home-chips {
+.home-thumb-shade {
   position: absolute;
-  left: 24px;
-  bottom: 20px;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.45) 0%, transparent 35%);
+  pointer-events: none;
+}
+
+.home-annotator {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 1;
   display: flex;
   align-items: center;
-  gap: 8px;
-}
-
-.home-chip {
-  display: inline-flex;
-  align-items: center;
-  height: 28px;
-  padding: 0 12px;
+  gap: 10px;
+  max-width: calc(100% - 32px);
+  padding: 6px 14px 6px 6px;
   border-radius: var(--radius-pill);
-  font-family: var(--font-kicker);
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  white-space: nowrap;
+  background: rgba(18, 16, 14, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(14px) saturate(140%);
 }
 
-.home-chip-duration {
-  background: #fff;
-  color: var(--ink);
+.home-avatar {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #f0b48c;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.home-avatar img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+}
+
+.home-annotator-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.home-annotator-name {
   font-family: var(--font-body);
-  font-size: 12px;
-  letter-spacing: 0.01em;
-  text-transform: none;
-  font-variant-numeric: tabular-nums;
-}
-
-.home-chip-count {
-  background: #141210;
-  border: 1px solid rgba(255, 255, 255, 0.28);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
   color: #fff;
 }
 
-.home-body {
-  padding: 28px;
+.home-annotator-count {
+  font-family: var(--font-body);
+  font-size: 11.5px;
+  font-weight: 400;
+  line-height: 1.2;
+  color: rgba(255, 255, 255, 0.72);
+  white-space: nowrap;
 }
 
-.home-meta,
+.home-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px 28px 28px;
+}
+
 .watch-meta {
   font-family: var(--font-kicker);
   font-size: 11px;
@@ -231,35 +260,36 @@ button:disabled {
 
 .home-title {
   font-family: var(--font-display);
-  font-size: clamp(28px, 5vw, 40px);
-  line-height: 1.05;
-  margin: 0 0 16px;
+  font-size: 34px;
+  line-height: 1.08;
+  text-wrap: pretty;
+  margin: 0;
 }
 
 .home-quote {
-  margin: 0 0 16px;
+  margin: 0;
   padding-left: 16px;
-  border-left: 2px solid var(--peach);
+  border-left: 2px solid #f0b48c;
   font-family: var(--font-serif-italic);
   font-style: italic;
   font-size: 18px;
-  line-height: 1.45;
-  color: rgba(255, 255, 255, 0.82);
-}
-
-.home-byline {
-  font-size: 13px;
-  color: var(--on-dark-soft);
-  margin-bottom: 20px;
+  line-height: 1.5;
+  color: #d9d1c8;
 }
 
 .home-cta {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  font-family: var(--font-body);
   font-size: 14px;
   font-weight: 500;
-  color: var(--peach);
+  color: #f0b48c;
+  text-decoration: none;
+}
+
+.home-card:hover .home-cta {
+  color: #f7cfb1;
 }
 
 .count-pill {

@@ -2,15 +2,34 @@
 
 import { useEffect, useState } from "react";
 import { ArrowIcon } from "@/components/icons";
-import { excerpt, formatPreciseTime } from "@/lib/time";
+import { excerpt } from "@/lib/time";
 import type { Video } from "@/lib/types";
 
 interface SelectScreenProps {
   onSelect: (video: Video) => void;
 }
 
-function formatMeta(video: Video): string {
-  return [video.style, video.context].filter(Boolean).join(" · ");
+const INSTRUMENT_ICONS = [
+  "/instruments/agogo.svg",
+  "/instruments/atabaque.svg",
+  "/instruments/berimbau.svg",
+  "/instruments/caxixi.svg",
+  "/instruments/pandeiro.svg",
+  "/instruments/reco-reco.svg",
+];
+
+function iconFor(videoId: string): string {
+  let hash = 0;
+  for (const char of videoId) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+  return INSTRUMENT_ICONS[hash % INSTRUMENT_ICONS.length];
+}
+
+function displayTitle(title: string): string {
+  return title.replace(/#\S+/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function annotatorLabel(video: Video): string {
+  return video.annotators.filter(Boolean).join(", ");
 }
 
 export function SelectScreen({ onSelect }: SelectScreenProps) {
@@ -57,7 +76,9 @@ export function SelectScreen({ onSelect }: SelectScreenProps) {
           <p className="status-message">No annotated jogos yet.</p>
         ) : (
           <div className="home-list">
-            {videos.map((video) => (
+            {videos.map((video) => {
+              const annotator = annotatorLabel(video);
+              return (
               <button
                 key={video.videoId}
                 type="button"
@@ -71,39 +92,34 @@ export function SelectScreen({ onSelect }: SelectScreenProps) {
                   ) : (
                     <span className="home-thumb-label">Roda thumbnail</span>
                   )}
-                  <span className="home-chips">
-                    {video.durationLabel && (
-                      <span className="home-chip home-chip-duration">
-                        {video.durationLabel}
+                  <span className="home-thumb-shade" aria-hidden />
+                  <span className="home-annotator">
+                    <span className="home-avatar" aria-hidden>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={iconFor(video.videoId)} alt="" />
+                    </span>
+                    <span className="home-annotator-copy">
+                      {annotator && (
+                        <span className="home-annotator-name">{annotator}</span>
+                      )}
+                      <span className="home-annotator-count">
+                        {`${video.momentCount} annotated moment${video.momentCount === 1 ? "" : "s"}`}
                       </span>
-                    )}
-                    <span className="home-chip home-chip-count">
-                      {video.momentCount} annotated moment
-                      {video.momentCount === 1 ? "" : "s"}
                     </span>
                   </span>
                 </span>
                 <span className="home-body">
-                  {formatMeta(video) && (
-                    <div className="home-meta">{formatMeta(video)}</div>
-                  )}
-                  <h2 className="home-title">{video.videoTitle}</h2>
+                  <h2 className="home-title">{displayTitle(video.videoTitle)}</h2>
                   {video.featured?.whyText && (
-                    <p className="home-quote">“{excerpt(video.featured.whyText, 160)}”</p>
-                  )}
-                  {video.featured && (
-                    <div className="home-byline">
-                      {[video.featured.annotatorName, formatPreciseTime(video.featured.timestamp)]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </div>
+                    <p className="home-quote">{excerpt(video.featured.whyText, 160)}</p>
                   )}
                   <span className="home-cta">
                     Study the moments <ArrowIcon size={15} />
                   </span>
                 </span>
               </button>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

@@ -7,6 +7,7 @@ export interface Video {
   thumbnailUrl?: string;
   durationLabel?: string;
   momentCount: number;
+  annotators: string[];
   featured?: FeaturedMoment | null;
 }
 

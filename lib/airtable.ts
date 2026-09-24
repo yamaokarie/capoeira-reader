@@ -73,6 +73,18 @@ async function youtubeDurationLabel(youtubeId: string): Promise<string | undefin
   }
 }
 
+function annotatorNames(moments: Moment[]): string[] {
+  const seen = new Set<string>();
+  const names: string[] = [];
+  for (const moment of moments) {
+    const name = moment.annotatorName.trim();
+    if (!name || seen.has(name)) continue;
+    seen.add(name);
+    names.push(name);
+  }
+  return names;
+}
+
 function thumbnailUrlFor(youtubeId: string | undefined): string | undefined {
   return youtubeId
     ? `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg`
@@ -173,6 +185,7 @@ export async function getVideos(): Promise<Video[]> {
         thumbnailUrl: thumbnailUrlFor(youtubeId),
         durationLabel,
         momentCount: moments.length,
+        annotators: annotatorNames(moments),
         featured: featured
           ? {
               timestamp: featured.timestamp,
