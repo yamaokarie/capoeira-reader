@@ -135,6 +135,8 @@ button:disabled {
   overflow: hidden;
   text-align: left;
   color: inherit;
+  text-decoration: none;
+  cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -356,6 +358,8 @@ button:disabled {
   color: var(--on-dark);
   font-size: 15px;
   padding: 0;
+  text-decoration: none;
+  cursor: pointer;
 }
 
 .watch-frame-wrap {

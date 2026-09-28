@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { formatTime } from "./time";
 import { Moment, Video } from "./types";
 
@@ -149,7 +150,7 @@ async function fetchAllRecords<T>(
   return records;
 }
 
-export async function getVideos(): Promise<Video[]> {
+export const getVideos = cache(async function getVideos(): Promise<Video[]> {
   const [videoRecords, annotationRecords] = await Promise.all([
     fetchAllRecords<VideoFields>(VIDEOS_TABLE),
     fetchAllRecords<AnnotationFields>(ANNOTATIONS_TABLE),
@@ -198,7 +199,14 @@ export async function getVideos(): Promise<Video[]> {
   );
 
   return videos.filter((video) => video.youtubeId);
-}
+});
+
+export const getVideoById = cache(async function getVideoById(
+  videoId: string
+): Promise<Video | null> {
+  const videos = await getVideos();
+  return videos.find((video) => video.videoId === videoId) ?? null;
+});
 
 export async function getMomentsByVideoId(videoId: string): Promise<Moment[]> {
   const escaped = videoId.replace(/'/g, "\\'");

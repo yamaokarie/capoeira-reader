@@ -1,13 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { ArrowIcon } from "@/components/icons";
 import { excerpt } from "@/lib/time";
 import type { Video } from "@/lib/types";
-
-interface SelectScreenProps {
-  onSelect: (video: Video) => void;
-}
 
 const INSTRUMENT_ICONS = [
   "/instruments/agogo.svg",
@@ -32,7 +29,7 @@ function annotatorLabel(video: Video): string {
   return video.annotators.filter(Boolean).join(", ");
 }
 
-export function SelectScreen({ onSelect }: SelectScreenProps) {
+export function SelectScreen() {
   const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -79,11 +76,10 @@ export function SelectScreen({ onSelect }: SelectScreenProps) {
             {videos.map((video) => {
               const annotator = annotatorLabel(video);
               return (
-              <button
+              <Link
                 key={video.videoId}
-                type="button"
+                href={`/videos/${encodeURIComponent(video.videoId)}`}
                 className="home-card"
-                onClick={() => onSelect(video)}
               >
                 <span className="home-thumb">
                   {video.thumbnailUrl ? (
@@ -117,7 +113,7 @@ export function SelectScreen({ onSelect }: SelectScreenProps) {
                     Study the moments <ArrowIcon size={15} />
                   </span>
                 </span>
-              </button>
+              </Link>
               );
             })}
           </div>

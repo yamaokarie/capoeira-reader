@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { PauseIcon, PlayIcon } from "@/components/icons";
 import { YouTubePlayer, type YouTubePlayerHandle } from "@/components/YouTubePlayer";
 import { tagLabel } from "@/lib/taxonomy";
@@ -15,7 +16,6 @@ function formatSpeed(rate: number) {
 
 interface WatchScreenProps {
   video: Video;
-  onBack: () => void;
 }
 
 function nearbyMoments(moments: Moment[], time: number): Moment[] {
@@ -28,7 +28,7 @@ function formatMeta(video: Video): string {
   return [video.style, video.context].filter(Boolean).join(" · ");
 }
 
-export function WatchScreen({ video, onBack }: WatchScreenProps) {
+export function WatchScreen({ video }: WatchScreenProps) {
   const playerRef = useRef<YouTubePlayerHandle>(null);
   const seenRef = useRef(new Set<string>());
   const [moments, setMoments] = useState<Moment[]>([]);
@@ -136,9 +136,9 @@ export function WatchScreen({ video, onBack }: WatchScreenProps) {
     <div className="page">
       <div className="watch-page-inner">
         <div className="watch-top">
-          <button type="button" className="watch-back" onClick={onBack}>
+          <Link href="/" className="watch-back">
             ← All games
-          </button>
+          </Link>
           <span className="count-pill">
             <span className="count-pill-dot" aria-hidden />
             {moments.length} annotated moment{moments.length === 1 ? "" : "s"}
