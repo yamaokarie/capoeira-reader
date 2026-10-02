@@ -543,7 +543,7 @@ button:disabled {
   font-family: var(--font-quote);
   font-style: normal;
   font-weight: 300;
-  font-size: 34px;
+  font-size: 24px;
   line-height: 1.4;
   margin: 0;
 }
@@ -616,10 +616,10 @@ button:disabled {
   overflow: hidden;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
-  font-family: var(--font-quote);
-  font-weight: 300;
-  font-size: 18px;
-  line-height: 1.2;
+  font-family: var(--font-body);
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 1.4;
   margin-bottom: 6px;
 }
 
