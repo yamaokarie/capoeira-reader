@@ -10,6 +10,9 @@ import { PAUSE_WINDOW_SECONDS, type Moment, type Video } from "@/lib/types";
 
 const SPEEDS = [1, 1.25, 1.5, 2, 0.5, 0.25];
 
+// Matches .panel-swap.is-leaving's transition in globals.css.
+const PANEL_EXIT_MS = 140;
+
 function formatSpeed(rate: number) {
   return `${rate % 1 === 0 ? rate.toFixed(0) : rate}×`;
 }
@@ -43,6 +46,18 @@ export function WatchScreen({ video }: WatchScreenProps) {
   const [duration, setDuration] = useState(0);
   const [dragging, setDragging] = useState(false);
   const [active, setActive] = useState<Moment[] | null>(null);
+  // What the top of the panel is showing. Trails `active` by the exit
+  // animation, so the outgoing annotation can leave before the next enters.
+  const [shown, setShown] = useState<Moment[] | null>(null);
+  const activeKey = active ? clusterKey(active) : "";
+  const shownKey = shown ? clusterKey(shown) : "";
+  const leaving = activeKey !== shownKey;
+
+  useEffect(() => {
+    if (!leaving) return;
+    const id = window.setTimeout(() => setShown(active), PANEL_EXIT_MS);
+    return () => window.clearTimeout(id);
+  }, [leaving, active]);
 
   // Land on the first annotated moment: cued and shown, but not playing.
   // Runs once, as soon as both the player and the moments are in.
@@ -272,34 +287,39 @@ export function WatchScreen({ video }: WatchScreenProps) {
           </div>
 
           <aside className="watch-panel">
-            {active ? (
-              <div className="watch-panel-read">
-                {active.map((moment) => (
-                  <div key={moment.id} className="panel-block">
-                    <div className="panel-by">
-                      {moment.annotatorName
-                        ? `${moment.annotatorName} · ${formatPreciseTime(moment.timestamp)}`
-                        : formatPreciseTime(moment.timestamp)}
+            <div
+              key={shownKey}
+              className={`panel-swap${leaving ? " is-leaving" : ""}`}
+            >
+              {shown ? (
+                <div className="watch-panel-read">
+                  {shown.map((moment) => (
+                    <div key={moment.id} className="panel-block">
+                      <div className="panel-by">
+                        {moment.annotatorName
+                          ? `${moment.annotatorName} · ${formatPreciseTime(moment.timestamp)}`
+                          : formatPreciseTime(moment.timestamp)}
+                      </div>
+                      <p className="panel-why">
+                        {moment.whyText || "No explanation recorded."}
+                      </p>
                     </div>
-                    <p className="panel-why">
-                      {moment.whyText || "No explanation recorded."}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="watch-panel-idle">
-                <h2 className="panel-idle-title">Annotated moments</h2>
-                <p className="panel-idle-copy">
-                  Play the jogo — we&rsquo;ll pause at each mark so you can read
-                  why it matters.
-                </p>
-              </div>
-            )}
+                  ))}
+                </div>
+              ) : (
+                <div className="watch-panel-idle">
+                  <h2 className="panel-idle-title">Annotated moments</h2>
+                  <p className="panel-idle-copy">
+                    Play the jogo — we&rsquo;ll pause at each mark so you can
+                    read why it matters.
+                  </p>
+                </div>
+              )}
+            </div>
 
             <div className="watch-panel-list">
               <div className="moments-head">
-                <h2>{active ? "All moments" : "Jump to a mark"}</h2>
+                <h2>{shown ?"All moments" : "Jump to a mark"}</h2>
                 <span className="moments-head-kicker">Tap to read</span>
               </div>
 
