@@ -26,6 +26,7 @@ interface YTPlayerInstance {
   playVideo: () => void;
   pauseVideo: () => void;
   seekTo: (seconds: number, allowSeekAhead: boolean) => void;
+  cueVideoById: (opts: { videoId: string; startSeconds: number }) => void;
   setPlaybackRate: (rate: number) => void;
   mute: () => void;
   unMute: () => void;
@@ -64,6 +65,7 @@ export interface YouTubePlayerHandle {
   getCurrentTime: () => number;
   getDuration: () => number;
   seekTo: (seconds: number) => void;
+  cueAt: (seconds: number) => void;
   setPlaybackRate: (rate: number) => void;
   getPlaybackRate: () => number;
   play: () => void;
@@ -98,6 +100,15 @@ export const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>
         readyRef.current ? (playerRef.current?.getDuration() ?? 0) : 0,
       seekTo: (seconds: number) => {
         if (readyRef.current) playerRef.current?.seekTo(seconds, true);
+      },
+      // seekTo() on a not-yet-started player starts playback; cueing parks
+      // the player at the time without playing.
+      cueAt: (seconds: number) => {
+        if (readyRef.current)
+          playerRef.current?.cueVideoById({
+            videoId: youtubeId,
+            startSeconds: seconds,
+          });
       },
       setPlaybackRate: (rate: number) => {
         rateRef.current = rate;

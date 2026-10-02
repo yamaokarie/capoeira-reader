@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { PauseIcon, PlayIcon } from "@/components/icons";
 import { YouTubePlayer, type YouTubePlayerHandle } from "@/components/YouTubePlayer";
@@ -31,6 +31,10 @@ function formatMeta(video: Video): string {
 export function WatchScreen({ video }: WatchScreenProps) {
   const playerRef = useRef<YouTubePlayerHandle>(null);
   const seenRef = useRef(new Set<string>());
+  const cuedRef = useRef(false);
+  const playerReadyRef = useRef(false);
+  const startedRef = useRef(false);
+  const momentsRef = useRef<Moment[]>([]);
   const [moments, setMoments] = useState<Moment[]>([]);
   const [loading, setLoading] = useState(true);
   const [playing, setPlaying] = useState(false);
@@ -40,6 +44,23 @@ export function WatchScreen({ video }: WatchScreenProps) {
   const [dragging, setDragging] = useState(false);
   const [active, setActive] = useState<Moment[] | null>(null);
 
+  // Land on the first annotated moment: cued and shown, but not playing.
+  // Runs once, as soon as both the player and the moments are in.
+  const cueFirstMoment = useCallback(() => {
+    const list = momentsRef.current;
+    if (cuedRef.current || !playerReadyRef.current || list.length === 0) return;
+    cuedRef.current = true;
+    if (startedRef.current) return;
+
+    const first = list.reduce((a, b) => (b.timestamp < a.timestamp ? b : a));
+    const cluster = nearbyMoments(list, first.timestamp);
+    seenRef.current.add(clusterKey(cluster));
+    playerRef.current?.cueAt(first.timestamp);
+    setCurrentTime(first.timestamp);
+    setActive(cluster);
+    setPlaybackRate(0.25);
+  }, []);
+
   useEffect(() => {
     async function load() {
       try {
@@ -47,7 +68,11 @@ export function WatchScreen({ video }: WatchScreenProps) {
           `/api/moments?videoId=${encodeURIComponent(video.videoId)}`
         );
         const data = await response.json();
-        if (data.moments) setMoments(data.moments);
+        if (data.moments) {
+          setMoments(data.moments);
+          momentsRef.current = data.moments;
+          cueFirstMoment();
+        }
       } catch (error) {
         console.error("Error loading moments:", error);
       } finally {
@@ -55,7 +80,7 @@ export function WatchScreen({ video }: WatchScreenProps) {
       }
     }
     load();
-  }, [video.videoId]);
+  }, [video.videoId, cueFirstMoment]);
 
   useEffect(() => {
     if (!playing || dragging) return;
@@ -153,8 +178,13 @@ export function WatchScreen({ video }: WatchScreenProps) {
                 youtubeId={video.youtubeId}
                 playing={playing}
                 playbackRate={playbackRate}
-                onReady={setDuration}
+                onReady={(nextDuration) => {
+                  setDuration(nextDuration);
+                  playerReadyRef.current = true;
+                  cueFirstMoment();
+                }}
                 onPlayStateChange={(next) => {
+                  if (next) startedRef.current = true;
                   if (next && active) setPlaybackRate(0.25);
                   setPlaying(next);
                 }}
