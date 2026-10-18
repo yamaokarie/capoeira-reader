@@ -1,12 +1,10 @@
 import { cache } from "react";
+import { Audience, tableFor } from "./audience";
 import { formatTime } from "./time";
 import { Moment, Video } from "./types";
 
 const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
 const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID;
-const ANNOTATIONS_TABLE =
-  process.env.AIRTABLE_ANNOTATIONS_TABLE || "Annotations";
-const VIDEOS_TABLE = process.env.AIRTABLE_VIDEOS_TABLE || "Videos";
 
 const BASE_URL = "https://api.airtable.com/v0";
 
@@ -150,10 +148,12 @@ async function fetchAllRecords<T>(
   return records;
 }
 
-export const getVideos = cache(async function getVideos(): Promise<Video[]> {
+export const getVideos = cache(async function getVideos(
+  audience: Audience = "expert"
+): Promise<Video[]> {
   const [videoRecords, annotationRecords] = await Promise.all([
-    fetchAllRecords<VideoFields>(VIDEOS_TABLE),
-    fetchAllRecords<AnnotationFields>(ANNOTATIONS_TABLE),
+    fetchAllRecords<VideoFields>(tableFor(audience, "videos")),
+    fetchAllRecords<AnnotationFields>(tableFor(audience, "annotations")),
   ]);
 
   const momentsByVideo = new Map<string, Moment[]>();
@@ -202,16 +202,20 @@ export const getVideos = cache(async function getVideos(): Promise<Video[]> {
 });
 
 export const getVideoById = cache(async function getVideoById(
-  videoId: string
+  videoId: string,
+  audience: Audience = "expert"
 ): Promise<Video | null> {
-  const videos = await getVideos();
+  const videos = await getVideos(audience);
   return videos.find((video) => video.videoId === videoId) ?? null;
 });
 
-export async function getMomentsByVideoId(videoId: string): Promise<Moment[]> {
+export async function getMomentsByVideoId(
+  videoId: string,
+  audience: Audience = "expert"
+): Promise<Moment[]> {
   const escaped = videoId.replace(/'/g, "\\'");
   const records = await fetchAllRecords<AnnotationFields>(
-    ANNOTATIONS_TABLE,
+    tableFor(audience, "annotations"),
     `{videoId} = '${escaped}'`
   );
 

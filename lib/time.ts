@@ -29,10 +29,3 @@ export function excerpt(text: string, max = 180): string {
   if (trimmed.length <= max) return trimmed;
   return `${trimmed.slice(0, max - 1).trimEnd()}…`;
 }
-
-export function clusterKey(moments: { id: string }[]): string {
-  return moments
-    .map((m) => m.id)
-    .sort()
-    .join(",");
-}

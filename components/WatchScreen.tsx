@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { PauseIcon, PlayIcon } from "@/components/icons";
 import { YouTubePlayer, type YouTubePlayerHandle } from "@/components/YouTubePlayer";
+import { homePathFor, type Audience } from "@/lib/audience";
 import { tagLabel } from "@/lib/taxonomy";
-import { clusterKey, formatPreciseTime, formatTime } from "@/lib/time";
+import { formatPreciseTime, formatTime } from "@/lib/time";
 import { PAUSE_WINDOW_SECONDS, type Moment, type Video } from "@/lib/types";
 
 const SPEEDS = [1, 1.25, 1.5, 2, 0.5, 0.25];
@@ -19,19 +20,36 @@ function formatSpeed(rate: number) {
 
 interface WatchScreenProps {
   video: Video;
+  audience?: Audience;
 }
 
-function nearbyMoments(moments: Moment[], time: number): Moment[] {
-  return moments.filter(
-    (moment) => Math.abs(moment.timestamp - time) < PAUSE_WINDOW_SECONDS
-  );
+// The one moment to highlight at `time`: the closest mark within the pause
+// window. A tie goes to `current`, so a moment picked by hand keeps the slot.
+function nearestMoment(
+  moments: Moment[],
+  time: number,
+  current: Moment | null
+): Moment | null {
+  let best: Moment | null = null;
+  let bestDistance = PAUSE_WINDOW_SECONDS;
+  for (const moment of moments) {
+    const distance = Math.abs(moment.timestamp - time);
+    if (
+      distance < bestDistance ||
+      (best !== null && distance === bestDistance && moment.id === current?.id)
+    ) {
+      best = moment;
+      bestDistance = distance;
+    }
+  }
+  return best;
 }
 
 function formatMeta(video: Video): string {
   return [video.style, video.context].filter(Boolean).join(" · ");
 }
 
-export function WatchScreen({ video }: WatchScreenProps) {
+export function WatchScreen({ video, audience = "expert" }: WatchScreenProps) {
   const playerRef = useRef<YouTubePlayerHandle>(null);
   const seenRef = useRef(new Set<string>());
   const cuedRef = useRef(false);
@@ -45,13 +63,13 @@ export function WatchScreen({ video }: WatchScreenProps) {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [dragging, setDragging] = useState(false);
-  const [active, setActive] = useState<Moment[] | null>(null);
+  // Only ever one highlighted moment, however close together the marks sit.
+  const [active, setActive] = useState<Moment | null>(null);
   // What the top of the panel is showing. Trails `active` by the exit
   // animation, so the outgoing annotation can leave before the next enters.
-  const [shown, setShown] = useState<Moment[] | null>(null);
-  const activeKey = active ? clusterKey(active) : "";
-  const shownKey = shown ? clusterKey(shown) : "";
-  const leaving = activeKey !== shownKey;
+  const [shown, setShown] = useState<Moment | null>(null);
+  const shownKey = shown?.id ?? "";
+  const leaving = (active?.id ?? "") !== shownKey;
 
   useEffect(() => {
     if (!leaving) return;
@@ -68,11 +86,10 @@ export function WatchScreen({ video }: WatchScreenProps) {
     if (startedRef.current) return;
 
     const first = list.reduce((a, b) => (b.timestamp < a.timestamp ? b : a));
-    const cluster = nearbyMoments(list, first.timestamp);
-    seenRef.current.add(clusterKey(cluster));
+    seenRef.current.add(first.id);
     playerRef.current?.cueAt(first.timestamp);
     setCurrentTime(first.timestamp);
-    setActive(cluster);
+    setActive(first);
     setPlaybackRate(0.25);
   }, []);
 
@@ -80,7 +97,7 @@ export function WatchScreen({ video }: WatchScreenProps) {
     async function load() {
       try {
         const response = await fetch(
-          `/api/moments?videoId=${encodeURIComponent(video.videoId)}`
+          `/api/moments?videoId=${encodeURIComponent(video.videoId)}&audience=${audience}`
         );
         const data = await response.json();
         if (data.moments) {
@@ -95,7 +112,7 @@ export function WatchScreen({ video }: WatchScreenProps) {
       }
     }
     load();
-  }, [video.videoId, cueFirstMoment]);
+  }, [video.videoId, audience, cueFirstMoment]);
 
   useEffect(() => {
     if (!playing || dragging) return;
@@ -104,40 +121,37 @@ export function WatchScreen({ video }: WatchScreenProps) {
       const time = playerRef.current?.getCurrentTime() ?? 0;
       setCurrentTime(time);
 
-      const hits = nearbyMoments(moments, time);
-      if (hits.length === 0) return;
-      const key = clusterKey(hits);
-      if (seenRef.current.has(key)) return;
+      // Approaching the next mark swaps it into the highlight slot; the
+      // first time through, playback also pauses there.
+      const next = nearestMoment(moments, time, active);
+      if (!next || next.id === active?.id) return;
+      setActive(next);
+      if (seenRef.current.has(next.id)) return;
 
-      seenRef.current.add(key);
-      setActive(hits);
+      seenRef.current.add(next.id);
       setPlaying(false);
       setPlaybackRate(0.25);
     }, 200);
 
     return () => window.clearInterval(id);
-  }, [playing, dragging, moments]);
+  }, [playing, dragging, moments, active]);
 
-  const openCluster = (seed: Moment, playhead = seed.timestamp) => {
-    const hits = nearbyMoments(moments, seed.timestamp);
-    const cluster = hits.length > 0 ? hits : [seed];
-    seenRef.current.add(clusterKey(cluster));
-    playerRef.current?.seekTo(playhead);
-    setCurrentTime(playhead);
-    setActive(cluster);
+  const openMoment = (moment: Moment) => {
+    seenRef.current.add(moment.id);
+    playerRef.current?.seekTo(moment.timestamp);
+    setCurrentTime(moment.timestamp);
+    setActive(moment);
     setPlaying(false);
     setPlaybackRate(0.25);
   };
 
-  const playCluster = (seed: Moment) => {
-    const hits = nearbyMoments(moments, seed.timestamp);
-    const cluster = hits.length > 0 ? hits : [seed];
-    seenRef.current.add(clusterKey(cluster));
-    playerRef.current?.seekTo(seed.timestamp);
+  const playMoment = (moment: Moment) => {
+    seenRef.current.add(moment.id);
+    playerRef.current?.seekTo(moment.timestamp);
     playerRef.current?.setPlaybackRate(0.25);
     playerRef.current?.play();
-    setCurrentTime(seed.timestamp);
-    setActive(cluster);
+    setCurrentTime(moment.timestamp);
+    setActive(moment);
     setPlaybackRate(0.25);
     setPlaying(true);
   };
@@ -167,16 +181,12 @@ export function WatchScreen({ video }: WatchScreenProps) {
   };
 
   const progress = duration > 0 ? currentTime / duration : 0;
-  const activeIds = useMemo(
-    () => new Set((active ?? []).map((moment) => moment.id)),
-    [active]
-  );
 
   return (
     <div className="page">
       <div className="watch-page-inner">
         <div className="watch-top">
-          <Link href="/" className="watch-back">
+          <Link href={homePathFor(audience)} className="watch-back">
             ← All games
           </Link>
           <span className="count-pill">
@@ -260,7 +270,7 @@ export function WatchScreen({ video }: WatchScreenProps) {
                         left: `${Math.min(100, Math.max(0, (moment.timestamp / duration) * 100))}%`,
                       }}
                       aria-label={`Moment at ${formatPreciseTime(moment.timestamp)}`}
-                      onClick={() => openCluster(moment)}
+                      onClick={() => openMoment(moment)}
                     />
                   ))}
                 <input
@@ -293,18 +303,14 @@ export function WatchScreen({ video }: WatchScreenProps) {
             >
               {shown ? (
                 <div className="watch-panel-read">
-                  {shown.map((moment) => (
-                    <div key={moment.id} className="panel-block">
-                      <div className="panel-by">
-                        {moment.annotatorName
-                          ? `${moment.annotatorName} · ${formatPreciseTime(moment.timestamp)}`
-                          : formatPreciseTime(moment.timestamp)}
-                      </div>
-                      <p className="panel-why">
-                        {moment.whyText || "No explanation recorded."}
-                      </p>
-                    </div>
-                  ))}
+                  <div className="panel-by">
+                    {shown.annotatorName
+                      ? `${shown.annotatorName} · ${formatPreciseTime(shown.timestamp)}`
+                      : formatPreciseTime(shown.timestamp)}
+                  </div>
+                  <p className="panel-why">
+                    {shown.whyText || "No explanation recorded."}
+                  </p>
                 </div>
               ) : (
                 <div className="watch-panel-idle">
@@ -341,8 +347,8 @@ export function WatchScreen({ video }: WatchScreenProps) {
                     <button
                       key={moment.id}
                       type="button"
-                      className={`moment-compact${activeIds.has(moment.id) ? " is-active" : ""}`}
-                      onClick={() => playCluster(moment)}
+                      className={`moment-compact${active?.id === moment.id ? " is-active" : ""}`}
+                      onClick={() => playMoment(moment)}
                     >
                       <span className="moment-time">
                         <span className="moment-time-dot" aria-hidden />

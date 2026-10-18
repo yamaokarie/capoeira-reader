@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowIcon } from "@/components/icons";
+import { homePathFor, videoPathFor, type Audience } from "@/lib/audience";
 import { excerpt } from "@/lib/time";
 import type { Video } from "@/lib/types";
 
@@ -29,7 +30,37 @@ function annotatorLabel(video: Video): string {
   return video.annotators.filter(Boolean).join(", ");
 }
 
-export function SelectScreen() {
+const COPY: Record<
+  Audience,
+  { kicker: string; title: string; subhead: string; empty: string }
+> = {
+  expert: {
+    kicker: "Capoeira · Annotated rodas",
+    title: "Study the moment",
+    subhead:
+      "Games annotated by mestres and professores — frozen at the instants where the jogo turns.",
+    empty: "No annotated jogos yet.",
+  },
+  student: {
+    kicker: "Capoeira · Student rodas",
+    title: "Study the moment",
+    subhead:
+      "Our own rodas, annotated by teachers and students — what each of us saw in the jogo.",
+    empty: "No annotated student rodas yet.",
+  },
+};
+
+const VIEWS: { audience: Audience; label: string }[] = [
+  { audience: "expert", label: "Mestres" },
+  { audience: "student", label: "Student rodas" },
+];
+
+interface SelectScreenProps {
+  audience?: Audience;
+}
+
+export function SelectScreen({ audience = "expert" }: SelectScreenProps) {
+  const copy = COPY[audience];
   const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +68,7 @@ export function SelectScreen() {
   useEffect(() => {
     async function load() {
       try {
-        const response = await fetch("/api/videos");
+        const response = await fetch(`/api/videos?audience=${audience}`);
         const data = await response.json();
         if (!response.ok) {
           setError(data.error || "Failed to load videos");
@@ -51,18 +82,27 @@ export function SelectScreen() {
       }
     }
     load();
-  }, []);
+  }, [audience]);
 
   return (
     <div className="page">
       <div className="page-inner">
         <header className="home-header">
-          <div className="kicker">Capoeira · Annotated rodas</div>
-          <h1 className="display-title">Study the moment</h1>
-          <p className="home-subhead">
-            Games annotated by mestres and professores — frozen at the instants
-            where the jogo turns.
-          </p>
+          <nav className="library-switch" aria-label="Library">
+            {VIEWS.map((view) => (
+              <Link
+                key={view.audience}
+                href={homePathFor(view.audience)}
+                className="library-switch-option"
+                aria-current={view.audience === audience ? "page" : undefined}
+              >
+                {view.label}
+              </Link>
+            ))}
+          </nav>
+          <div className="kicker">{copy.kicker}</div>
+          <h1 className="display-title">{copy.title}</h1>
+          <p className="home-subhead">{copy.subhead}</p>
         </header>
 
         {loading ? (
@@ -70,7 +110,7 @@ export function SelectScreen() {
         ) : error ? (
           <p className="status-message">{error}</p>
         ) : videos.length === 0 ? (
-          <p className="status-message">No annotated jogos yet.</p>
+          <p className="status-message">{copy.empty}</p>
         ) : (
           <div className="home-list">
             {videos.map((video) => {
@@ -78,7 +118,7 @@ export function SelectScreen() {
               return (
               <Link
                 key={video.videoId}
-                href={`/videos/${encodeURIComponent(video.videoId)}`}
+                href={videoPathFor(audience, video.videoId)}
                 className="home-card"
               >
                 <span className="home-thumb">
