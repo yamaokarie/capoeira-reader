@@ -9,7 +9,7 @@ import { tagLabel } from "@/lib/taxonomy";
 import { formatPreciseTime, formatTime } from "@/lib/time";
 import { PAUSE_WINDOW_SECONDS, type Moment, type Video } from "@/lib/types";
 
-const SPEEDS = [1, 1.25, 1.5, 2, 0.5, 0.25];
+const SPEEDS = [0.25, 0.5, 1, 1.25, 1.5, 2];
 
 // Matches .panel-swap.is-leaving's transition in globals.css.
 const PANEL_EXIT_MS = 140;
