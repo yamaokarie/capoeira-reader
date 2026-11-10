@@ -1,19 +1,11 @@
 export function formatTime(secs: number): string {
   const clamped = Math.max(0, Math.floor(secs));
-  const mins = Math.floor(clamped / 60);
+  const hours = Math.floor(clamped / 3600);
+  const mins = Math.floor((clamped % 3600) / 60);
   const sec = clamped % 60;
-  return `${mins}:${sec.toString().padStart(2, "0")}`;
-}
-
-export function formatPreciseTime(secs: number): string {
-  const clamped = Math.max(0, secs);
-  let mins = Math.floor(clamped / 60);
-  let sec = Math.round((clamped - mins * 60) * 10) / 10;
-  if (sec >= 60) {
-    sec -= 60;
-    mins += 1;
-  }
-  return `${mins}:${sec.toFixed(1).padStart(4, "0")}`;
+  const ss = sec.toString().padStart(2, "0");
+  const mm = mins.toString().padStart(2, "0");
+  return hours > 0 ? `${hours}:${mm}:${ss}` : `${mm}:${ss}`;
 }
 
 export function firstSentence(text: string, max = 72): string {
