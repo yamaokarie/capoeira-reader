@@ -10,6 +10,7 @@ const BASE_URL = "https://api.airtable.com/v0";
 
 interface AirtableRecord<T> {
   id: string;
+  createdTime?: string;
   fields: T;
 }
 
@@ -165,8 +166,15 @@ export const getVideos = cache(async function getVideos(
     momentsByVideo.set(moment.videoId, list);
   }
 
+  // Airtable returns records in no guaranteed order, so sort newest-first by
+  // createdTime (set on every record) — same order as the annotation tool's
+  // entry screen, with newly added videos on top.
+  const newestFirst = [...videoRecords].sort((a, b) =>
+    (b.createdTime ?? "").localeCompare(a.createdTime ?? "")
+  );
+
   const videos = await Promise.all(
-    videoRecords.map(async (record) => {
+    newestFirst.map(async (record) => {
       const youtubeId = record.fields.youtubeId || "";
       const videoId = record.fields.videoId || youtubeId || record.id;
       const moments = (momentsByVideo.get(videoId) ?? []).sort(
