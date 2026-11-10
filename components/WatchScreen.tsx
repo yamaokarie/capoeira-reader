@@ -7,7 +7,13 @@ import { YouTubePlayer, type YouTubePlayerHandle } from "@/components/YouTubePla
 import { homePathFor, type Audience } from "@/lib/audience";
 import { tagLabel } from "@/lib/taxonomy";
 import { formatPreciseTime, formatTime } from "@/lib/time";
-import { PAUSE_WINDOW_SECONDS, type Moment, type Video } from "@/lib/types";
+import {
+  NORMAL_RATE,
+  PAUSE_WINDOW_SECONDS,
+  SECTION_RATE,
+  type Moment,
+  type Video,
+} from "@/lib/types";
 
 const SPEEDS = [0.25, 0.5, 1, 1.25, 1.5, 2];
 
@@ -23,6 +29,24 @@ interface WatchScreenProps {
   audience?: Audience;
 }
 
+// The stretch of video a moment covers: its own span when it has an end
+// point, otherwise the pause window either side of the mark.
+function sectionOf(moment: Moment): [number, number] {
+  if (moment.endTimestamp !== undefined)
+    return [moment.timestamp, moment.endTimestamp];
+  return [
+    Math.max(0, moment.timestamp - PAUSE_WINDOW_SECONDS),
+    moment.timestamp + PAUSE_WINDOW_SECONDS,
+  ];
+}
+
+function inAnySection(moments: Moment[], time: number): boolean {
+  return moments.some((moment) => {
+    const [start, end] = sectionOf(moment);
+    return time >= start && time <= end;
+  });
+}
+
 // The one moment to highlight at `time`: the closest mark within the pause
 // window. A tie goes to `current`, so a moment picked by hand keeps the slot.
 function nearestMoment(
@@ -33,7 +57,12 @@ function nearestMoment(
   let best: Moment | null = null;
   let bestDistance = PAUSE_WINDOW_SECONDS;
   for (const moment of moments) {
-    const distance = Math.abs(moment.timestamp - time);
+    const [start, end] = sectionOf(moment);
+    // Anywhere inside a span counts as on it.
+    const distance =
+      moment.endTimestamp !== undefined && time >= start && time <= end
+        ? 0
+        : Math.abs(moment.timestamp - time);
     if (
       distance < bestDistance ||
       (best !== null && distance === bestDistance && moment.id === current?.id)
@@ -51,15 +80,14 @@ function formatMeta(video: Video): string {
 
 export function WatchScreen({ video, audience = "expert" }: WatchScreenProps) {
   const playerRef = useRef<YouTubePlayerHandle>(null);
-  const seenRef = useRef(new Set<string>());
-  const cuedRef = useRef(false);
-  const playerReadyRef = useRef(false);
-  const startedRef = useRef(false);
-  const momentsRef = useRef<Moment[]>([]);
+  // Whether playback is currently inside an annotated section. Speed only
+  // changes when this flips, so a speed picked by hand sticks until the
+  // next section boundary.
+  const inSectionRef = useRef(false);
   const [moments, setMoments] = useState<Moment[]>([]);
   const [loading, setLoading] = useState(true);
   const [playing, setPlaying] = useState(false);
-  const [playbackRate, setPlaybackRate] = useState(1);
+  const [playbackRate, setPlaybackRate] = useState(NORMAL_RATE);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [dragging, setDragging] = useState(false);
@@ -77,21 +105,18 @@ export function WatchScreen({ video, audience = "expert" }: WatchScreenProps) {
     return () => window.clearTimeout(id);
   }, [leaving, active]);
 
-  // Land on the first annotated moment: cued and shown, but not playing.
-  // Runs once, as soon as both the player and the moments are in.
-  const cueFirstMoment = useCallback(() => {
-    const list = momentsRef.current;
-    if (cuedRef.current || !playerReadyRef.current || list.length === 0) return;
-    cuedRef.current = true;
-    if (startedRef.current) return;
-
-    const first = list.reduce((a, b) => (b.timestamp < a.timestamp ? b : a));
-    seenRef.current.add(first.id);
-    playerRef.current?.cueAt(first.timestamp);
-    setCurrentTime(first.timestamp);
-    setActive(first);
-    setPlaybackRate(0.25);
-  }, []);
+  // Half speed inside an annotated section, normal speed outside it.
+  const syncSpeed = useCallback(
+    (time: number) => {
+      const inside = inAnySection(moments, time);
+      if (inside === inSectionRef.current) return;
+      inSectionRef.current = inside;
+      const rate = inside ? SECTION_RATE : NORMAL_RATE;
+      setPlaybackRate(rate);
+      playerRef.current?.setPlaybackRate(rate);
+    },
+    [moments]
+  );
 
   useEffect(() => {
     async function load() {
@@ -100,11 +125,7 @@ export function WatchScreen({ video, audience = "expert" }: WatchScreenProps) {
           `/api/moments?videoId=${encodeURIComponent(video.videoId)}&audience=${audience}`
         );
         const data = await response.json();
-        if (data.moments) {
-          setMoments(data.moments);
-          momentsRef.current = data.moments;
-          cueFirstMoment();
-        }
+        if (data.moments) setMoments(data.moments);
       } catch (error) {
         console.error("Error loading moments:", error);
       } finally {
@@ -112,7 +133,7 @@ export function WatchScreen({ video, audience = "expert" }: WatchScreenProps) {
       }
     }
     load();
-  }, [video.videoId, audience, cueFirstMoment]);
+  }, [video.videoId, audience]);
 
   useEffect(() => {
     if (!playing || dragging) return;
@@ -120,39 +141,32 @@ export function WatchScreen({ video, audience = "expert" }: WatchScreenProps) {
     const id = window.setInterval(() => {
       const time = playerRef.current?.getCurrentTime() ?? 0;
       setCurrentTime(time);
+      syncSpeed(time);
 
-      // Approaching the next mark swaps it into the highlight slot; the
-      // first time through, playback also pauses there.
+      // Approaching the next mark swaps it into the highlight slot.
       const next = nearestMoment(moments, time, active);
-      if (!next || next.id === active?.id) return;
-      setActive(next);
-      if (seenRef.current.has(next.id)) return;
-
-      seenRef.current.add(next.id);
-      setPlaying(false);
-      setPlaybackRate(0.25);
+      if (next && next.id !== active?.id) setActive(next);
     }, 200);
 
     return () => window.clearInterval(id);
-  }, [playing, dragging, moments, active]);
+  }, [playing, dragging, moments, active, syncSpeed]);
 
   const openMoment = (moment: Moment) => {
-    seenRef.current.add(moment.id);
     playerRef.current?.seekTo(moment.timestamp);
     setCurrentTime(moment.timestamp);
+    syncSpeed(moment.timestamp);
     setActive(moment);
     setPlaying(false);
-    setPlaybackRate(0.25);
   };
 
+  // Plays the moment's whole section, from where the slowdown starts.
   const playMoment = (moment: Moment) => {
-    seenRef.current.add(moment.id);
-    playerRef.current?.seekTo(moment.timestamp);
-    playerRef.current?.setPlaybackRate(0.25);
+    const [start] = sectionOf(moment);
+    playerRef.current?.seekTo(start);
+    syncSpeed(start);
     playerRef.current?.play();
-    setCurrentTime(moment.timestamp);
+    setCurrentTime(start);
     setActive(moment);
-    setPlaybackRate(0.25);
     setPlaying(true);
   };
 
@@ -167,10 +181,7 @@ export function WatchScreen({ video, audience = "expert" }: WatchScreenProps) {
       setPlaying(false);
       return;
     }
-    if (active) {
-      setPlaybackRate(0.25);
-      playerRef.current?.setPlaybackRate(0.25);
-    }
+    syncSpeed(currentTime);
     setPlaying(true);
   };
 
@@ -178,6 +189,7 @@ export function WatchScreen({ video, audience = "expert" }: WatchScreenProps) {
     const clamped = Math.max(0, Math.min(duration || time, time));
     playerRef.current?.seekTo(clamped);
     setCurrentTime(clamped);
+    syncSpeed(clamped);
   };
 
   const progress = duration > 0 ? currentTime / duration : 0;
@@ -203,16 +215,8 @@ export function WatchScreen({ video, audience = "expert" }: WatchScreenProps) {
                 youtubeId={video.youtubeId}
                 playing={playing}
                 playbackRate={playbackRate}
-                onReady={(nextDuration) => {
-                  setDuration(nextDuration);
-                  playerReadyRef.current = true;
-                  cueFirstMoment();
-                }}
-                onPlayStateChange={(next) => {
-                  if (next) startedRef.current = true;
-                  if (next && active) setPlaybackRate(0.25);
-                  setPlaying(next);
-                }}
+                onReady={setDuration}
+                onPlayStateChange={setPlaying}
               />
             </div>
 
@@ -316,8 +320,8 @@ export function WatchScreen({ video, audience = "expert" }: WatchScreenProps) {
                 <div className="watch-panel-idle">
                   <h2 className="panel-idle-title">Annotated moments</h2>
                   <p className="panel-idle-copy">
-                    Play the jogo — we&rsquo;ll pause at each mark so you can
-                    read why it matters.
+                    Play the jogo — it slows to half speed at each mark so you
+                    can read why it matters.
                   </p>
                 </div>
               )}
