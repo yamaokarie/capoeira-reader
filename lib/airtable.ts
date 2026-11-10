@@ -33,6 +33,7 @@ interface AnnotationFields {
   videoId?: string;
   videoTitle?: string;
   momentTimestamp?: number;
+  momentEndTimestamp?: number;
   momentLabel?: string;
   annotatorName?: string;
   whyMode?: string;
@@ -102,10 +103,12 @@ function toMoment(record: AirtableRecord<AnnotationFields>): Moment | null {
   const timestamp = record.fields.momentTimestamp;
   if (typeof timestamp !== "number" || !record.fields.videoId) return null;
 
+  const end = record.fields.momentEndTimestamp;
   return {
     id: record.id,
     videoId: record.fields.videoId,
     timestamp,
+    endTimestamp: typeof end === "number" && end > timestamp ? end : undefined,
     momentLabel: record.fields.momentLabel || "",
     annotatorName: record.fields.annotatorName || "",
     whyText: whyFromFields(record.fields),
