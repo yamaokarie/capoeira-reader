@@ -29,3 +29,17 @@ export function videoPathFor(audience: Audience, videoId: string): string {
   const prefix = audience === "student" ? "/student" : "";
   return `${prefix}/videos/${encodeURIComponent(videoId)}`;
 }
+
+// The annotation tool's video page for this video (student site only), or
+// null when ANNOTATION_APP_URL isn't set. Server-side only.
+export function annotateUrlFor(videoId: string): string | null {
+  const base = process.env.ANNOTATION_APP_URL?.trim();
+  if (!base) return null;
+  try {
+    const url = new URL("/student", base);
+    url.searchParams.set("video", videoId);
+    return url.toString();
+  } catch {
+    return null;
+  }
+}

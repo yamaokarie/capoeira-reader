@@ -27,6 +27,8 @@ function formatSpeed(rate: number) {
 interface WatchScreenProps {
   video: Video;
   audience?: Audience;
+  // Where to annotate this video in the annotation tool; no link if absent.
+  annotateUrl?: string | null;
 }
 
 // The stretch of video a moment covers: its own span when it has an end
@@ -78,7 +80,11 @@ function formatMeta(video: Video): string {
   return [video.style, video.context].filter(Boolean).join(" · ");
 }
 
-export function WatchScreen({ video, audience = "expert" }: WatchScreenProps) {
+export function WatchScreen({
+  video,
+  audience = "expert",
+  annotateUrl,
+}: WatchScreenProps) {
   const playerRef = useRef<YouTubePlayerHandle>(null);
   // Whether playback is currently inside an annotated section. Speed only
   // changes when this flips, so a speed picked by hand sticks until the
@@ -323,6 +329,12 @@ export function WatchScreen({ video, audience = "expert" }: WatchScreenProps) {
                     Play the jogo — it slows to half speed at each mark so you
                     can read why it matters.
                   </p>
+                  {annotateUrl && (
+                    <p className="watch-annotate">
+                      Want to make notes or give feedback?{" "}
+                      <a href={annotateUrl}>Try the annotation tool</a>
+                    </p>
+                  )}
                 </div>
               )}
             </div>
