@@ -6,7 +6,7 @@ import { PauseIcon, PlayIcon } from "@/components/icons";
 import { YouTubePlayer, type YouTubePlayerHandle } from "@/components/YouTubePlayer";
 import { homePathFor, type Audience } from "@/lib/audience";
 import { tagLabel } from "@/lib/taxonomy";
-import { formatPreciseTime, formatTime } from "@/lib/time";
+import { formatTime } from "@/lib/time";
 import {
   NORMAL_RATE,
   PAUSE_WINDOW_SECONDS,
@@ -279,7 +279,7 @@ export function WatchScreen({
                       style={{
                         left: `${Math.min(100, Math.max(0, (moment.timestamp / duration) * 100))}%`,
                       }}
-                      aria-label={`Moment at ${formatPreciseTime(moment.timestamp)}`}
+                      aria-label={`Moment at ${formatTime(moment.timestamp)}`}
                       onClick={() => openMoment(moment)}
                     />
                   ))}
@@ -315,8 +315,8 @@ export function WatchScreen({
                 <div className="watch-panel-read">
                   <div className="panel-by">
                     {shown.annotatorName
-                      ? `${shown.annotatorName} · ${formatPreciseTime(shown.timestamp)}`
-                      : formatPreciseTime(shown.timestamp)}
+                      ? `${shown.annotatorName} · ${formatTime(shown.timestamp)}`
+                      : formatTime(shown.timestamp)}
                   </div>
                   <p className="panel-why">
                     {shown.whyText || "No explanation recorded."}
@@ -356,9 +356,7 @@ export function WatchScreen({
               ) : (
                 moments.map((moment) => {
                   const title =
-                    moment.whyText.trim() ||
-                    moment.momentLabel ||
-                    "Untitled moment";
+                    moment.whyText.trim() || formatTime(moment.timestamp);
                   return (
                     <button
                       key={moment.id}
@@ -368,7 +366,7 @@ export function WatchScreen({
                     >
                       <span className="moment-time">
                         <span className="moment-time-dot" aria-hidden />
-                        {formatPreciseTime(moment.timestamp)}
+                        {formatTime(moment.timestamp)}
                       </span>
                       <span className="moment-compact-title">{title}</span>
                       {moment.annotatorName && (
