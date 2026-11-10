@@ -535,6 +535,24 @@ button:disabled {
   margin: 0;
 }
 
+.watch-annotate {
+  margin: 12px 0 0;
+  font-size: 10pt;
+  line-height: 1.5;
+  color: var(--on-dark-soft);
+}
+
+.watch-annotate a {
+  color: var(--peach);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  white-space: nowrap;
+}
+
+.watch-annotate a:hover {
+  color: var(--on-dark);
+}
+
 .watch-panel-read {
   margin-bottom: 32px;
 }

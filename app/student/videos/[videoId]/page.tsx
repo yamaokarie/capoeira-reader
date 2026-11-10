@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { WatchScreen } from "@/components/WatchScreen";
 import { getVideoById } from "@/lib/airtable";
+import { annotateUrlFor } from "@/lib/audience";
 
 interface StudentVideoPageProps {
   params: Promise<{ videoId: string }>;
@@ -28,5 +29,11 @@ export default async function StudentVideoPage({ params }: StudentVideoPageProps
   const { videoId } = await params;
   const video = await getVideoById(videoIdFromParam(videoId), "student");
   if (!video) notFound();
-  return <WatchScreen video={video} audience="student" />;
+  return (
+    <WatchScreen
+      video={video}
+      audience="student"
+      annotateUrl={annotateUrlFor(video.videoId)}
+    />
+  );
 }
