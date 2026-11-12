@@ -90,6 +90,10 @@ export function WatchScreen({
   // changes when this flips, so a speed picked by hand sticks until the
   // next section boundary.
   const inSectionRef = useRef(false);
+  // Where the last seek was sent. YouTube's getCurrentTime() keeps reporting
+  // the pre-seek time for a moment after seekTo(), so the poll ignores
+  // readings far from this until the player catches up (or it times out).
+  const seekTargetRef = useRef<{ time: number; until: number } | null>(null);
   const [moments, setMoments] = useState<Moment[]>([]);
   const [loading, setLoading] = useState(true);
   const [playing, setPlaying] = useState(false);
@@ -146,6 +150,11 @@ export function WatchScreen({
 
     const id = window.setInterval(() => {
       const time = playerRef.current?.getCurrentTime() ?? 0;
+      const target = seekTargetRef.current;
+      if (target) {
+        if (Math.abs(time - target.time) > 1 && Date.now() < target.until) return;
+        seekTargetRef.current = null;
+      }
       setCurrentTime(time);
       syncSpeed(time);
 
@@ -157,21 +166,29 @@ export function WatchScreen({
     return () => window.clearInterval(id);
   }, [playing, dragging, moments, active, syncSpeed]);
 
+  const seekPlayer = useCallback((time: number) => {
+    seekTargetRef.current = { time, until: Date.now() + 1500 };
+    playerRef.current?.seekTo(time);
+  }, []);
+
   const openMoment = (moment: Moment) => {
-    playerRef.current?.seekTo(moment.timestamp);
+    seekPlayer(moment.timestamp);
     setCurrentTime(moment.timestamp);
     syncSpeed(moment.timestamp);
     setActive(moment);
     setPlaying(false);
   };
 
-  // Plays the moment's whole section, from where the slowdown starts.
+  // Jumps to the moment's mark and plays it at section speed (0.5×), even
+  // if a different speed was picked by hand.
   const playMoment = (moment: Moment) => {
-    const [start] = sectionOf(moment);
-    playerRef.current?.seekTo(start);
-    syncSpeed(start);
+    const time = moment.timestamp;
+    seekPlayer(time);
+    inSectionRef.current = inAnySection(moments, time);
+    setPlaybackRate(SECTION_RATE);
+    playerRef.current?.setPlaybackRate(SECTION_RATE);
     playerRef.current?.play();
-    setCurrentTime(start);
+    setCurrentTime(time);
     setActive(moment);
     setPlaying(true);
   };
@@ -193,7 +210,7 @@ export function WatchScreen({
 
   const seekFromScrub = (time: number) => {
     const clamped = Math.max(0, Math.min(duration || time, time));
-    playerRef.current?.seekTo(clamped);
+    seekPlayer(clamped);
     setCurrentTime(clamped);
     syncSpeed(clamped);
   };
